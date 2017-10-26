@@ -1,0 +1,85 @@
+namespace Platform
+{
+
+ using Sitecore.Mvc.Presentation;
+    using Sitecore.StringExtensions;
+
+    /// <summary>
+    /// Extends Sitecore to be able to correctly resolve area Controllers and Views
+    /// at runtime.
+    /// </summary>
+    public class AreaControllerRenderer : Renderer
+    {
+        /// <summary>
+        /// Gets or sets the MVC Action.
+        /// </summary>
+        public string Action { get; set; }
+
+        /// <summary>
+        /// Gets or sets the MVC Controller.
+        /// </summary>
+        public string Controller { get; set; }
+
+        /// <summary>
+        /// Gets or sets the MVC Area.
+        /// </summary>
+        public string Area { get; set; }
+
+        /// <summary>
+        /// Gets or sets the Namespace.
+        /// </summary>
+        public string Namespace { get; set; }
+
+        /// <summary>
+        /// Gets the key used to cache.
+        /// </summary>
+        public override string CacheKey
+        {
+            get
+            {
+                return string.Format(
+                    "areacontroller::{0}#{1}#{2}#{3}",
+                    this.Namespace,
+                    this.Controller,
+                    this.Action,
+                    this.Area);
+            }
+        }
+
+        /// <summary>
+        /// Invoked by the platform.
+        /// </summary>
+        /// <param name="writer">
+        /// The writer object used to output the result of a render.
+        /// Passed in by the platform.
+        /// </param>
+        public override void Render(System.IO.TextWriter writer)
+        {
+            var controllerRunner = new AreaControllerRunner(this.Controller, this.Action, this.Area, this.Namespace);
+
+            var value = controllerRunner.Execute();
+            if (string.IsNullOrEmpty(value))
+            {
+                return;
+            }
+
+            writer.Write(value);
+        }
+
+        /// <summary>
+        /// Converts current instance to a string.
+        /// </summary>
+        /// <returns>
+        /// An pretty formated instance information.
+        /// </returns>
+        public override string ToString()
+        {
+            return "Controller: {0}. Action: {1}, Area {2}, Namespace {3}".FormatWith(
+                this.Controller,
+                this.Action,
+                this.Area,
+                this.Namespace);
+        }
+    }
+
+}
