@@ -1,0 +1,73 @@
+ using System;
+    using System.Linq;
+    using Platform;
+    using Sitecore.Mvc.Pipelines.Response.GetRenderer;
+    using Sitecore.Mvc.Presentation;
+    using Sitecore.StringExtensions;
+
+    /// <summary>
+    /// Helps Sitecore infer context when rendering MVC Areas.
+    /// </summary>
+    public class GetAreaRendererProcessor : GetRendererProcessor
+    {
+        /// <summary>
+        /// Gets a renderer for a Sitecore rendering.
+        /// </summary>
+        /// <param name="args">The arguments for the render.</param>
+        public override void Process(GetRendererArgs args)
+        {
+            if (args.Result != null || args.Rendering == null || args.Rendering.RenderingItem == null)
+            {
+                return; // Renderer already resolved or not enough context to proceed.
+            }
+
+            if (args.Rendering.RenderingItem.InnerItem["area"].IsNullOrEmpty())
+            {
+                return; // Area information is not available
+            }
+
+            args.Result = this.GetRenderer(args.Rendering, args);
+        }
+
+        /// <summary>
+        /// Gets a renderer for a rendering and given arguments.
+        /// </summary>
+        /// <param name="rendering">The Sitecore rendering.</param>
+        /// <param name="args">The Render arguments.</param>
+        /// <returns>A Sitecore Renderer.</returns>
+        protected virtual Renderer GetRenderer(Rendering rendering, GetRendererArgs args)
+        {
+            var action = rendering.RenderingItem.InnerItem.Fields["controller action"].GetValue(true);
+            var controller = rendering.RenderingItem.InnerItem.Fields["controller"].GetValue(true);
+            var area = rendering.RenderingItem.InnerItem.Fields["area"].GetValue(true);
+
+            if (controller.IsNullOrEmpty())
+            {
+                throw new NotSupportedException(
+                    "Area rendering without controller, name or full type name are not supported.");
+            }
+
+            // If controller is a full type name use name space information,
+            // needed to distinguish controllers with the same name in different
+            // name spaces.
+            var controllerFullNameParts = controller.Split('.');
+            if (controllerFullNameParts.Length > 1)
+            {
+                return new AreaControllerRenderer
+                {
+                    Action = action.IsNullOrEmpty() ? "Index" : action,
+                    Controller = controllerFullNameParts.Last(),
+                    Area = area,
+                    Namespace = string.Join(".", controllerFullNameParts.Take(controllerFullNameParts.Length - 1))
+                };
+            }
+
+            // Proceed without name space information
+            return new AreaControllerRenderer
+            {
+                Action = action,
+                Controller = controller,
+                Area = area,
+            };
+        }
+    }
